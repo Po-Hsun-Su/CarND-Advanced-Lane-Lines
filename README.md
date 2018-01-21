@@ -1,39 +1,72 @@
-## Advanced Lane Finding
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
+## Advanced Lane Finding Project
 
+The code for this project is in the IPython notebook located in "./Advanced lane finding.ipynb".
 
-In this project, your goal is to write a software pipeline to identify the lane boundaries in a video, but the main output or product we want you to create is a detailed writeup of the project.  Check out the [writeup template](https://github.com/udacity/CarND-Advanced-Lane-Lines/blob/master/writeup_template.md) for this project and use it as a starting point for creating your own writeup.  
+## Camera Calibration
 
-Creating a great writeup:
+I set the depth of the object points of the chessboard at z = 0 and the coordinates (x, y) are 9 by 6 mesh grid.
+
+To find the image point, I called the `cv2.findChessboardCorners`. The tricky part is that some calibration images do not include all 9x6 = 54 points. The findChessboardCorners function will fail in those images. Therefore, I use the images with all points for calibration and the other images for testing.
+
+The `cv2.calibrateCamera()` computes the parameters for removing distortion. An undistorted image and its original image are shown below.
+
+ ![](./calibrated.png)
+ ![](./camera_cal/calibration2.jpg)
+
+### Pipeline (single image: test_images/test5.jpg)
+The entire pipeline has 4 steps. I use `test_images/test5.jpg` as an example.
+1. Correct distortion with cv2.undistort
+2. Convert image to binary feature image
+3. Perspective transform
+4. Search for lane pixels and fit them in the binary feature image
+5. Compute curvature and distance to center
+
+#### 1. & 2. Undistort and binary feature map
+After the first distortion correction step with `cv2.undistort` and the calibration parameters, we can convert the RGB image to a binary feature image using a combination of gradient and color space thresholding. The code is in the 5th cell in the notebook. The colored binary feature image is shown below. Blue colored pixels have high S value in the HSL color space and the green pixels have high gradient.  
+![](color_binary.png)
+
+#### 3. Perspective transform
+
+To compute the perspective transform, I marked four points in `test_images/straight_lines1.jpg` as shown below.
+![](Perspective_points.png)
+
+This resulted in the following source and destination points:
+
+| Source        | Destination   |
+|:-------------:|:-------------:|
+| 710, 464      | 1055, 0        |
+| 1055, 689      | 1055, 720      |
+| 248, 689     | 248, 720      |
+| 574, 464      | 248, 0        |
+
+I compute the perspective transform matrix using `cv2.getPerspectiveTransform()` and use `cv2.warpPerspective` to compute the following bird eye view image.
+![](warped.png)
+
+The warped feature map if test2.jpg is shown below.
+![](warped_binary.png)
+
+#### 4. Fitting
+
+From the warped binary feature, I first search the pixels of the lane using the sliding window method as describe in the lecture. I increase the number of rows for computing the initial histogram for better initial estimate of the lane position. The fitting result of test2.jpg is shown below.
+
+![](out_img.png)
+
+#### 5. Curvature and distance to center
+
+To combine the curvature of left and right lane, I combine the binary feature pixels of the left and right lane together and do another polynomial fitting. The advantage of this approach to directly averaging the coefficient of the two polynomial is that the combined fitting is more robust to missing lane on one side.
+
+I follow the equation in the lecture to compute the curvature of the combined lane. The distance between the midpoint and the center of the two lanes is computed.
+
+A visualization of the final result is shown below.
+![](result.png)
 ---
-A great writeup should include the rubric points as well as your description of how you addressed each point.  You should include a detailed description of the code used in each step (with line-number references and code snippets where necessary), and links to other supporting documents or external references.  You should include images in your writeup to demonstrate how your code works with examples.  
 
-All that said, please be concise!  We're not looking for you to write a book here, just a brief description of how you passed each rubric point, and references to the relevant code :). 
+### Pipeline (video)
 
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup.
+Here's a [link to my video result](./project_video_out_final.mp4)
 
-The Project
 ---
 
-The goals / steps of this project are the following:
+### Discussion
 
-* Compute the camera calibration matrix and distortion coefficients given a set of chessboard images.
-* Apply a distortion correction to raw images.
-* Use color transforms, gradients, etc., to create a thresholded binary image.
-* Apply a perspective transform to rectify binary image ("birds-eye view").
-* Detect lane pixels and fit to find the lane boundary.
-* Determine the curvature of the lane and vehicle position with respect to center.
-* Warp the detected lane boundaries back onto the original image.
-* Output visual display of the lane boundaries and numerical estimation of lane curvature and vehicle position.
-
-The images for camera calibration are stored in the folder called `camera_cal`.  The images in `test_images` are for testing your pipeline on single frames.  If you want to extract more test images from the videos, you can simply use an image writing method like `cv2.imwrite()`, i.e., you can read the video in frame by frame as usual, and for frames you want to save for later you can write to an image file.  
-
-To help the reviewer examine your work, please save examples of the output from each stage of your pipeline in the folder called `ouput_images`, and include a description in your writeup for the project of what each image shows.    The video called `project_video.mp4` is the video your pipeline should work well on.  
-
-The `challenge_video.mp4` video is an extra (and optional) challenge for you if you want to test your pipeline under somewhat trickier conditions.  The `harder_challenge.mp4` video is another optional challenge and is brutal!
-
-If you're feeling ambitious (again, totally optional though), don't stop there!  We encourage you to go out and take video of your own, calibrate your camera and show us how you would implement this project from scratch!
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
-
+The bottleneck of the current pipeline is the binary feature map. The current simple gradient and color space thresholding method is not robust to changes of shadow and false edges between the lanes in the `challenge_video.mp4`. One possible way to address this issue is use convolutional network to learn better feature for lane detection. 
